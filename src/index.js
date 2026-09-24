@@ -8,6 +8,8 @@ const swaggerJsDoc = require("swagger-jsdoc");
 const heartRateAggregationRoutes = require("./routes/heartRateAggregationRoutes");
 const realtimeHeartRateRoutes = require("./routes/realtimeHeartRateRoutes");
 const heartIssueRoutes = require("./routes/heartIssueRoutes");
+const medicationRoutes = require("./routes/medicationRoutes");
+const medicationScheduleRoutes = require("./routes/medicationScheduleRoutes");
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -41,6 +43,8 @@ app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 app.use("/api/hr", realtimeHeartRateRoutes);
 app.use("/api/hr-aggregation", heartRateAggregationRoutes);
 app.use("/api/hr-issues", heartIssueRoutes);
+app.use("/api/medications", medicationRoutes);
+app.use("/api/medication-schedules", medicationScheduleRoutes);
 
 app.listen(port, () => {
   console.log(`Server running on http://localhost:${port}`);
