@@ -1,13 +1,59 @@
 const pool = require("../config/db");
+const { Expo } = require("expo-server-sdk");
+const expo = new Expo();
+
+// ==========================================
+// FUNGSI HELPER
+// ==========================================
+
+// Fungsi helper untuk mengirim silent push
+const sendSilentPush = async (expoPushToken) => {
+  if (!Expo.isExpoPushToken(expoPushToken)) return;
+
+  const messages = [
+    {
+      to: expoPushToken,
+      data: { action: "SYNC_MEDICATION_SCHEDULES" },
+      // _contentAvailable: true sangat penting di iOS untuk background sync
+      _contentAvailable: true,
+    },
+  ];
+
+  try {
+    const chunks = expo.chunkPushNotifications(messages);
+    for (let chunk of chunks) {
+      await expo.sendPushNotificationsAsync(chunk);
+    }
+  } catch (error) {
+    console.error("Gagal mengirim silent push:", error);
+  }
+};
+
+// Helper baru: Ekstrak logika pencarian token dan trigger push ke dalam 1 fungsi
+const triggerSyncPushForUser = async (medicationId) => {
+  try {
+    // Cari expo_push_token milik user yang memiliki medication_id tersebut
+    const [users] = await pool.query(
+      `SELECT u.expo_push_token 
+       FROM users u
+       JOIN medications m ON u.id = m.user_id
+       WHERE m.id = ?`,
+      [medicationId]
+    );
+
+    if (users.length > 0 && users[0].expo_push_token) {
+      // Kirim silent push tanpa perlu 'await' agar response API lebih cepat
+      sendSilentPush(users[0].expo_push_token);
+    }
+  } catch (error) {
+    console.error("Gagal mencari token untuk push sync:", error);
+  }
+};
 
 // Helper untuk format ISO String ke 'YYYY-MM-DD HH:mm:ss'
 const formatDateTime = (dateString) => {
   if (!dateString) return null;
-  if (
-    typeof dateString === "string" &&
-    dateString.length === 10 &&
-    !dateString.includes("T")
-  ) {
+  if (typeof dateString === "string" && dateString.length === 10 && !dateString.includes("T")) {
     return dateString;
   }
   const date = new Date(dateString);
@@ -15,26 +61,22 @@ const formatDateTime = (dateString) => {
   return date.toISOString().slice(0, 19).replace("T", " ");
 };
 
+// ==========================================
+// KONTROLER UTAMA
+// ==========================================
+
 // 1. Menambahkan jadwal obat baru
 exports.createSchedule = async (req, res) => {
   try {
-    const {
-      medication_id,
-      schedule_date,
-      status = "pending",
-      takenAt = null,
-      late = 0,
-    } = req.body;
+    const { medication_id, schedule_date, status = "pending", takenAt = null, late = 0 } = req.body;
 
     const formattedScheduleDate = formatDateTime(schedule_date);
     const formattedTakenAt = formatDateTime(takenAt);
 
-    const [result] = await pool.query(
-      `INSERT INTO medication_schedules 
-       (medication_id, schedule_date, status, takenAt, late) 
-       VALUES (?, ?, ?, ?, ?)`,
-      [medication_id, formattedScheduleDate, status, formattedTakenAt, late],
-    );
+    const [result] = await pool.query(`INSERT INTO medication_schedules (medication_id, schedule_date, status, takenAt, late) VALUES (?, ?, ?, ?, ?)`, [medication_id, formattedScheduleDate, status, formattedTakenAt, late]);
+
+    // 🚀 ACTION: Pemicu push notifikasi setelah insert berhasil
+    triggerSyncPushForUser(medication_id);
 
     res.status(201).json({
       id: result.insertId,
@@ -46,8 +88,9 @@ exports.createSchedule = async (req, res) => {
   }
 };
 
-// 2. Mengambil semua jadwal obat (Support Single Date, Range Date, maupun Range Timestamp)
+// 2. Mengambil semua jadwal obat
 exports.getAllSchedules = async (req, res) => {
+  // ... (Tidak ada perubahan pada get/read) ...
   try {
     const { user_id, schedule_date, start_date, end_date, status, timezone = "+07:00" } = req.query;
 
@@ -63,21 +106,18 @@ exports.getAllSchedules = async (req, res) => {
       query += " AND m.user_id = ?";
       params.push(user_id);
     }
-    
+
     if (start_date && end_date) {
       if (start_date.length === 10 && end_date.length === 10) {
-        // 1. Rangkai menjadi waktu batas awal (start_date) dan akhir (end_date) di lokasi user
         const startOfRangeLocal = `${start_date}T00:00:00${timezone}`;
         const endOfRangeLocal = `${end_date}T23:59:59${timezone}`;
 
-        // 2. Konversi ke waktu absolut (UTC) untuk dicocokkan ke database
         const utcStartRange = new Date(startOfRangeLocal).toISOString().slice(0, 19).replace("T", " ");
         const utcEndRange = new Date(endOfRangeLocal).toISOString().slice(0, 19).replace("T", " ");
 
         query += " AND ms.schedule_date >= ? AND ms.schedule_date <= ?";
         params.push(utcStartRange, utcEndRange);
       } else {
-        // Fallback jika suatu saat frontend mengirim format timestamp (YYYY-MM-DD HH:mm:ss)
         const formattedStart = formatDateTime(start_date) || start_date;
         const formattedEnd = formatDateTime(end_date) || end_date;
         query += " AND ms.schedule_date >= ? AND ms.schedule_date <= ?";
@@ -85,19 +125,12 @@ exports.getAllSchedules = async (req, res) => {
       }
     } else if (schedule_date) {
       if (schedule_date.length === 10) {
-        // --- LOGIKA BARU: Filter Jam 12 Malam ke 12 Malam Sesuai Timezone User ---
-        
-        // 1. Rangkai menjadi format waktu lokal User sesuai parameter tanggal dan timezone
-        // Contoh: "2026-09-24T00:00:00+07:00" dan "2026-09-24T23:59:59+07:00"
         const startOfDayLocal = `${schedule_date}T00:00:00${timezone}`;
         const endOfDayLocal = `${schedule_date}T23:59:59${timezone}`;
 
-        // 2. Konversi waktu lokal tersebut ke format UTC
-        // toISOString() akan mengembalikan ke waktu UTC (contoh: "2026-09-23T17:00:00.000Z")
         const utcStart = new Date(startOfDayLocal).toISOString().slice(0, 19).replace("T", " ");
         const utcEnd = new Date(endOfDayLocal).toISOString().slice(0, 19).replace("T", " ");
 
-        // 3. Query menggunakan rentang waktu UTC yang sudah dihitung
         query += " AND ms.schedule_date >= ? AND ms.schedule_date <= ?";
         params.push(utcStart, utcEnd);
       } else {
@@ -123,22 +156,20 @@ exports.getAllSchedules = async (req, res) => {
 
 // 3. Mengambil detail jadwal obat berdasarkan ID
 exports.getScheduleById = async (req, res) => {
+  // ... (Tidak ada perubahan pada get/read) ...
   try {
     const { id } = req.params;
-
-    // Update query SELECT untuk menyesuaikan relasi field tabel medications terbaru
     const [rows] = await pool.query(
       `SELECT ms.*, m.user_id, m.generic_name, m.brand_name, m.dosage_form, m.strength, m.route, m.meal_relation
        FROM medication_schedules ms
        JOIN medications m ON ms.medication_id = m.id
        WHERE ms.id = ?`,
-      [id],
+      [id]
     );
 
     if (rows.length === 0) {
       return res.status(404).json({ message: "Jadwal obat tidak ditemukan" });
     }
-
     res.status(200).json(rows[0]);
   } catch (error) {
     console.error("Error getScheduleById:", error);
@@ -150,7 +181,7 @@ exports.getScheduleById = async (req, res) => {
 exports.updateSchedule = async (req, res) => {
   try {
     const { id } = req.params;
-    const { status } = req.body;
+    const { status, takenAt } = req.body;
 
     if (!status) {
       return res.status(400).json({ error: "Field 'status' wajib diisi" });
@@ -163,14 +194,18 @@ exports.updateSchedule = async (req, res) => {
       });
     }
 
-    const [result] = await pool.query(
-      "UPDATE medication_schedules SET status = ? WHERE id = ?",
-      [status.toLowerCase(), id],
-    );
-
-    if (result.affectedRows === 0) {
+    // A. Sebelum update, ambil medication_id-nya untuk push notifikasi
+    const [schedules] = await pool.query("SELECT medication_id FROM medication_schedules WHERE id = ?", [id]);
+    
+    if (schedules.length === 0) {
       return res.status(404).json({ message: "Jadwal obat tidak ditemukan" });
     }
+
+    const formattedTakenAt = formatDateTime(takenAt);
+    await pool.query("UPDATE medication_schedules SET status = ?, takenAt = ? WHERE id = ?", [status.toLowerCase(), formattedTakenAt, id]);
+
+    // 🚀 ACTION: Pemicu push notifikasi setelah update berhasil
+    triggerSyncPushForUser(schedules[0].medication_id);
 
     res.status(200).json({ message: "Status jadwal obat berhasil diperbarui" });
   } catch (error) {
@@ -183,14 +218,19 @@ exports.updateSchedule = async (req, res) => {
 exports.deleteSchedule = async (req, res) => {
   try {
     const { id } = req.params;
-    const [result] = await pool.query(
-      "DELETE FROM medication_schedules WHERE id = ?",
-      [id],
-    );
+    
+    // A. Sebelum dihapus, simpan medication_id-nya untuk target notifikasi
+    const [schedules] = await pool.query("SELECT medication_id FROM medication_schedules WHERE id = ?", [id]);
 
-    if (result.affectedRows === 0) {
+    if (schedules.length === 0) {
       return res.status(404).json({ message: "Jadwal obat tidak ditemukan" });
     }
+
+    // B. Lakukan penghapusan
+    await pool.query("DELETE FROM medication_schedules WHERE id = ?", [id]);
+
+    // 🚀 ACTION: Pemicu push notifikasi (menyuruh app agar menghapus alarm obat ini)
+    triggerSyncPushForUser(schedules[0].medication_id);
 
     res.status(200).json({ message: "Jadwal obat berhasil dihapus" });
   } catch (error) {

@@ -10,6 +10,7 @@ const realtimeHeartRateRoutes = require("./routes/realtimeHeartRateRoutes");
 const heartIssueRoutes = require("./routes/heartIssueRoutes");
 const medicationRoutes = require("./routes/medicationRoutes");
 const medicationScheduleRoutes = require("./routes/medicationScheduleRoutes");
+const authRoutes = require("./routes/authRoutes"); // <-- 1. Import Auth Route
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -40,6 +41,7 @@ const swaggerDocs = swaggerJsDoc(swaggerOptions);
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 
 // Mount Routes
+app.use("/api/auth", authRoutes); // <-- 2. Mount Auth Route
 app.use("/api/hr", realtimeHeartRateRoutes);
 app.use("/api/hr-aggregation", heartRateAggregationRoutes);
 app.use("/api/hr-issues", heartIssueRoutes);
