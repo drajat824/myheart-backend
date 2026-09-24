@@ -136,7 +136,7 @@ router.get("/:id", medicationScheduleController.getScheduleById);
  * @swagger
  * /api/medication-schedules/{id}:
  *   put:
- *     summary: Memperbarui data jadwal obat berdasarkan ID
+ *     summary: Memperbarui status jadwal obat berdasarkan ID
  *     tags: [Medication Schedules]
  *     parameters:
  *       - in: path
@@ -150,14 +150,24 @@ router.get("/:id", medicationScheduleController.getScheduleById);
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/MedicationSchedule'
+ *             type: object
+ *             required:
+ *               - status
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 enum: [pending, taken, missed]
+ *                 example: "taken"
+ *                 description: Status terbaru minum obat
  *     responses:
  *       200:
- *         description: Jadwal obat berhasil diperbarui
+ *         description: Status jadwal obat berhasil diperbarui
+ *       400:
+ *         description: Field status tidak valid atau tidak diisi
  *       404:
  *         description: Jadwal obat tidak ditemukan
  *       500:
- *         description: Gagal memperbarui jadwal obat
+ *         description: Gagal memperbarui status jadwal obat
  */
 router.put("/:id", medicationScheduleController.updateSchedule);
 

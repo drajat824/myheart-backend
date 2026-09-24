@@ -117,30 +117,39 @@ exports.getScheduleById = async (req, res) => {
   }
 };
 
-// 4. Memperbarui jadwal obat
+// 4. Memperbarui status jadwal obat
 exports.updateSchedule = async (req, res) => {
   try {
     const { id } = req.params;
-    const { medication_id, schedule_date, status, takenAt, late } = req.body;
+    const { status } = req.body;
 
-    const formattedScheduleDate = formatDateTime(schedule_date);
-    const formattedTakenAt = formatDateTime(takenAt);
+    // 1. Validasi keberadaan status pada request body
+    if (!status) {
+      return res.status(400).json({ error: "Field 'status' wajib diisi" });
+    }
 
+    // 2. Validasi enum status yang diperbolehkan
+    const allowedStatuses = ["pending", "taken", "missed"];
+    if (!allowedStatuses.includes(status.toLowerCase())) {
+      return res.status(400).json({
+        error: "Status tidak valid. Gunakan 'pending', 'taken', atau 'missed'.",
+      });
+    }
+
+    // 3. Update query khusus field status
     const [result] = await pool.query(
-      `UPDATE medication_schedules 
-       SET medication_id = ?, schedule_date = ?, status = ?, takenAt = ?, late = ? 
-       WHERE id = ?`,
-      [medication_id, formattedScheduleDate, status, formattedTakenAt, late, id]
+      "UPDATE medication_schedules SET status = ? WHERE id = ?",
+      [status.toLowerCase(), id]
     );
 
     if (result.affectedRows === 0) {
       return res.status(404).json({ message: "Jadwal obat tidak ditemukan" });
     }
 
-    res.status(200).json({ message: "Jadwal obat berhasil diperbarui" });
+    res.status(200).json({ message: "Status jadwal obat berhasil diperbarui" });
   } catch (error) {
     console.error("Error updateSchedule:", error);
-    res.status(500).json({ error: "Gagal memperbarui jadwal obat" });
+    res.status(500).json({ error: "Gagal memperbarui status jadwal obat" });
   }
 };
 
