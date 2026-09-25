@@ -69,7 +69,7 @@ exports.login = async (req, res) => {
 
     const token = jwt.sign(
       { id: user.id, email: user.email },
-      process.env.JWT_SECRET || "smart_health_secret_key",
+      process.env.JWT_SECRET,
       { expiresIn: "7d" }
     );
 
