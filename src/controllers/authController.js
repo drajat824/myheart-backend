@@ -5,7 +5,7 @@ const jwt = require("jsonwebtoken");
 // 1. Fungsi Register User Baru
 exports.register = async (req, res) => {
   try {
-    const { name, email, password, role = "patient" } = req.body;
+    const { name, email, password, role = "user" } = req.body;
 
     if (!name || !email || !password) {
       return res.status(400).json({ error: "Nama, email, dan password wajib diisi" });
@@ -80,11 +80,41 @@ exports.login = async (req, res) => {
         id: user.id,
         name: user.name,
         email: user.email,
-        role: user.role || "patient",
+        role: user.role || "user",
       },
     });
   } catch (error) {
     console.error("Error login:", error);
     res.status(500).json({ error: "Gagal melakukan proses login" });
+  }
+};
+
+exports.getAllUsers = async (req, res) => {
+  try {
+    // Mengecualikan kolom password untuk alasan keamanan
+    const [users] = await pool.query(
+      "SELECT id, name, email, role, expo_push_token FROM users WHERE role != 'admin'"
+    );
+    res.status(200).json(users);
+  } catch (error) {
+    console.error("Error getAllUsers:", error);
+    res.status(500).json({ error: "Gagal mengambil data user" });
+  }
+};
+
+exports.deleteUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const [result] = await pool.query("DELETE FROM users WHERE id = ?", [id]);
+    
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: "User tidak ditemukan" });
+    }
+    
+    res.status(200).json({ message: "User berhasil dihapus" });
+  } catch (error) {
+    console.error("Error deleteUser:", error);
+    res.status(500).json({ error: "Gagal menghapus user" });
   }
 };

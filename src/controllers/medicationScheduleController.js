@@ -181,36 +181,47 @@ exports.getScheduleById = async (req, res) => {
 exports.updateSchedule = async (req, res) => {
   try {
     const { id } = req.params;
-    const { status, takenAt } = req.body;
+    const { medication_id, schedule_date, status, takenAt, late } = req.body;
 
-    if (!status) {
-      return res.status(400).json({ error: "Field 'status' wajib diisi" });
-    }
-
-    const allowedStatuses = ["pending", "taken", "missed"];
-    if (!allowedStatuses.includes(status.toLowerCase())) {
-      return res.status(400).json({
-        error: "Status tidak valid. Gunakan 'pending', 'taken', atau 'missed'.",
-      });
-    }
-
-    // A. Sebelum update, ambil medication_id-nya untuk push notifikasi
-    const [schedules] = await pool.query("SELECT medication_id FROM medication_schedules WHERE id = ?", [id]);
+    // A. Ambil data lama terlebih dahulu sebelum diupdate
+    const [schedules] = await pool.query("SELECT * FROM medication_schedules WHERE id = ?", [id]);
     
     if (schedules.length === 0) {
       return res.status(404).json({ message: "Jadwal obat tidak ditemukan" });
     }
 
-    const formattedTakenAt = formatDateTime(takenAt);
-    await pool.query("UPDATE medication_schedules SET status = ?, takenAt = ? WHERE id = ?", [status.toLowerCase(), formattedTakenAt, id]);
+    const existing = schedules[0];
 
-    // 🚀 ACTION: Pemicu push notifikasi setelah update berhasil
-    triggerSyncPushForUser(schedules[0].medication_id);
+    // B. Atur nilai baru, jika tidak dikirim dalam request body, gunakan nilai lama dari DB
+    const newMedicationId = medication_id !== undefined ? medication_id : existing.medication_id;
+    const newStatus = status !== undefined ? status.toLowerCase() : existing.status;
+    const newLate = late !== undefined ? late : existing.late;
+    const newScheduleDate = schedule_date !== undefined ? formatDateTime(schedule_date) : formatDateTime(existing.schedule_date);
+    const newTakenAt = takenAt !== undefined ? formatDateTime(takenAt) : formatDateTime(existing.takenAt);
 
-    res.status(200).json({ message: "Status jadwal obat berhasil diperbarui" });
+    // C. Validasi status jika dikirimkan oleh user
+    if (status !== undefined) {
+      const allowedStatuses = ["pending", "taken", "missed"];
+      if (!allowedStatuses.includes(newStatus)) {
+        return res.status(400).json({
+          error: "Status tidak valid. Gunakan 'pending', 'taken', atau 'missed'.",
+        });
+      }
+    }
+
+    // D. Lakukan Update Menyeluruh ke tabel
+    await pool.query(
+      "UPDATE medication_schedules SET medication_id = ?, schedule_date = ?, status = ?, takenAt = ?, late = ? WHERE id = ?", 
+      [newMedicationId, newScheduleDate, newStatus, newTakenAt, newLate, id]
+    );
+
+    // 🚀 ACTION: Pemicu push notifikasi (menggunakan medication_id yang baru agar akurat)
+    triggerSyncPushForUser(newMedicationId);
+
+    res.status(200).json({ message: "Semua aspek jadwal obat berhasil diperbarui" });
   } catch (error) {
     console.error("Error updateSchedule:", error);
-    res.status(500).json({ error: "Gagal memperbarui status jadwal obat" });
+    res.status(500).json({ error: "Gagal memperbarui jadwal obat" });
   }
 };
 

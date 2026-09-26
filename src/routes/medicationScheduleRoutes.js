@@ -136,7 +136,7 @@ router.get("/:id", medicationScheduleController.getScheduleById);
  * @swagger
  * /api/medication-schedules/{id}:
  *   put:
- *     summary: Memperbarui status jadwal obat berdasarkan ID
+ *     summary: Memperbarui semua aspek jadwal obat berdasarkan ID
  *     tags: [Medication Schedules]
  *     parameters:
  *       - in: path
@@ -151,26 +151,38 @@ router.get("/:id", medicationScheduleController.getScheduleById);
  *         application/json:
  *           schema:
  *             type: object
- *             required:
- *               - status
  *             properties:
+ *               medication_id:
+ *                 type: integer
+ *                 description: ID obat baru (jika berubah)
+ *               schedule_date:
+ *                 type: string
+ *                 format: date-time
+ *                 example: "2026-09-24 08:00:00"
  *               status:
  *                 type: string
  *                 enum: [pending, taken, missed]
  *                 example: "taken"
- *                 description: Status terbaru minum obat
+ *               takenAt:
+ *                 type: string
+ *                 format: date-time
+ *                 example: "2026-09-24 08:15:00"
+ *               late:
+ *                 type: integer
+ *                 enum: [0, 1]
+ *                 example: 1
+ *                 description: Status keterlambatan (0=tepat waktu, 1=telat)
  *     responses:
  *       200:
- *         description: Status jadwal obat berhasil diperbarui
+ *         description: Seluruh aspek jadwal obat berhasil diperbarui
  *       400:
- *         description: Field status tidak valid atau tidak diisi
+ *         description: Field input ada yang tidak valid
  *       404:
  *         description: Jadwal obat tidak ditemukan
  *       500:
- *         description: Gagal memperbarui status jadwal obat
+ *         description: Gagal memperbarui jadwal obat
  */
 router.put("/:id", medicationScheduleController.updateSchedule);
-
 /**
  * @swagger
  * /api/medication-schedules/{id}:
