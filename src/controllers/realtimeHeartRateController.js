@@ -38,42 +38,66 @@ exports.createHeartRate = async (req, res) => {
   }
 };
 
-// Read All / Filter by Date or Date Range
+// Read All / Filter by Date or Date Range with Pagination
 exports.getAllHeartRates = async (req, res) => {
   try {
-    // Ambil timezone dari query string (default +07:00 jika tidak dikirim)
     const { date, start_time, end_time, user_id, timezone = "+07:00" } = req.query;
 
-    let query = "SELECT * FROM heart_rates WHERE 1=1";
+    // 1. Setup Pagination (Default: Page 1, Limit 30)
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 30;
+    const offset = (page - 1) * limit;
+
+    let whereClause = " WHERE 1=1";
     const params = [];
 
+    // 2. Build Where Clause
     if (user_id) {
-      query += " AND user_id = ?";
+      whereClause += " AND user_id = ?";
       params.push(user_id);
     }
 
     const singleDate = date || (!end_time ? start_time : null);
 
     if (singleDate && !end_time) {
-      // Konversi waktu UTC di DB (+00:00) ke timezone dinamis pilihan user
-      query += " AND DATE(CONVERT_TZ(start_time, '+00:00', ?)) = DATE(?)";
+      whereClause += " AND DATE(CONVERT_TZ(start_time, '+00:00', ?)) = DATE(?)";
       params.push(timezone, singleDate);
     } else if (start_time && end_time) {
       if (start_time.length === 10 && end_time.length === 10) {
-        query += " AND DATE(CONVERT_TZ(start_time, '+00:00', ?)) BETWEEN ? AND ?";
+        whereClause += " AND DATE(CONVERT_TZ(start_time, '+00:00', ?)) BETWEEN ? AND ?";
         params.push(timezone, start_time, end_time);
       } else {
         const formattedStart = formatDateTime(start_time) || start_time;
         const formattedEnd = formatDateTime(end_time) || end_time;
-        query += " AND start_time >= ? AND start_time <= ?";
+        whereClause += " AND start_time >= ? AND start_time <= ?";
         params.push(formattedStart, formattedEnd);
       }
     }
 
-    query += " ORDER BY start_time DESC";
+    // 3. Query Total Data untuk Metadata Paginasi
+    const countQuery = `SELECT COUNT(*) as total FROM heart_rates ${whereClause}`;
+    const [countRows] = await pool.query(countQuery, params);
+    const totalItems = countRows[0].total;
+    const totalPages = Math.ceil(totalItems / limit);
 
-    const [rows] = await pool.query(query, params);
-    res.status(200).json(rows);
+    // 4. Query Data Utama dengan Limit & Offset
+    const dataQuery = `SELECT * FROM heart_rates ${whereClause} ORDER BY start_time DESC LIMIT ? OFFSET ?`;
+    
+    // Duplikasi params dan tambahkan limit serta offset di akhir array
+    const dataParams = [...params, limit, offset];
+    
+    const [rows] = await pool.query(dataQuery, dataParams);
+
+    // 5. Kirim Response dengan Struktur Paginasi
+    res.status(200).json({
+      data: rows,
+      pagination: {
+        totalItems,
+        totalPages,
+        currentPage: page,
+        limit
+      }
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Gagal mengambil data" });

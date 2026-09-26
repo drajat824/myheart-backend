@@ -33,9 +33,21 @@ router.post("/", realtimeHeartRateController.createHeartRate);
  * @swagger
  * /api/hr:
  *   get:
- *     summary: Mengambil data detak jantung real-time (bisa filter date / range)
+ *     summary: Mengambil data detak jantung real-time (bisa filter date / range) dengan Paginasi
  *     tags: [Realtime Heart Rates]
  *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Nomor halaman (default 1)
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 30
+ *         description: Jumlah data per halaman (default 30)
  *       - in: query
  *         name: user_id
  *         schema:
@@ -59,9 +71,15 @@ router.post("/", realtimeHeartRateController.createHeartRate);
  *           type: string
  *           example: "2026-09-22"
  *         description: Tanggal akhir / rentang selesai
+ *       - in: query
+ *         name: timezone
+ *         schema:
+ *           type: string
+ *           default: "+07:00"
+ *         description: Zona waktu pengguna (default +07:00)
  *     responses:
  *       200:
- *         description: Berhasil mengambil daftar data
+ *         description: Berhasil mengambil daftar data beserta metadata paginasi
  *       500:
  *         description: Terjadi kesalahan pada server
  */
