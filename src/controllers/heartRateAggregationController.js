@@ -41,7 +41,6 @@ exports.createHeartRate = async (req, res) => {
 };
 
 // Read All
-// Read All / Filter by Date or Date Range
 exports.getAllHeartRates = async (req, res) => {
   try {
     // Ambil timezone dari query string (default +07:00 jika tidak dikirim)
