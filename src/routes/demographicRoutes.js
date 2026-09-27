@@ -10,6 +10,7 @@ const demographicController = require("../controllers/demographicController");
  *       type: object
  *       required:
  *         - user_id
+ *         - check_date
  *         - date_of_birth
  *         - gender
  *         - age
@@ -23,6 +24,10 @@ const demographicController = require("../controllers/demographicController");
  *         user_id:
  *           type: integer
  *           description: ID dari User yang bersangkutan
+ *         check_date:
+ *           type: string
+ *           format: date
+ *           description: Tanggal pemeriksaan atau input data (YYYY-MM-DD)
  *         date_of_birth:
  *           type: string
  *           format: date
@@ -56,6 +61,7 @@ const demographicController = require("../controllers/demographicController");
  *           description: Kadar kolesterol (mg/dL) - Opsional
  *       example:
  *         user_id: 1
+ *         check_date: "2026-09-25"
  *         date_of_birth: "1990-05-15"
  *         gender: "Male"
  *         age: 36
@@ -97,7 +103,7 @@ router.post("/", demographicController.createDemographic);
  * @swagger
  * /api/demographic:
  *   get:
- *     summary: Mengambil data demografi (bisa difilter berdasarkan tanggal pembuatan atau user)
+ *     summary: Mengambil data demografi (bisa difilter berdasarkan tanggal pemeriksaan atau user)
  *     tags: [Demographic]
  *     parameters:
  *       - in: query
@@ -110,7 +116,7 @@ router.post("/", demographicController.createDemographic);
  *         schema:
  *           type: string
  *           example: "2026-09-25"
- *         description: Filter untuk 1 tanggal spesifik berdasarkan tanggal pembuatan (YYYY-MM-DD)
+ *         description: Filter untuk 1 tanggal spesifik berdasarkan tanggal pemeriksaan (YYYY-MM-DD)
  *       - in: query
  *         name: start_date
  *         schema:

@@ -1,20 +1,19 @@
 const pool = require("../config/db");
 
 // Create
-// Create
 exports.createDemographic = async (req, res) => {
   try {
     const { 
-        user_id, date_of_birth, gender, age, 
+        user_id, check_date, date_of_birth, gender, age, 
         height, weight, bmi, blood_sugar, cholesterol 
     } = req.body;
 
-    // Pastikan jumlah parameter (?) persis 9 buah, sesuai dengan jumlah kolom
+    // Pastikan jumlah parameter (?) persis 10 buah, sesuai dengan jumlah kolom
     const [result] = await pool.query(
       `INSERT INTO demographic 
-      (user_id, date_of_birth, gender, age, height, weight, bmi, blood_sugar, cholesterol) 
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [user_id, date_of_birth, gender, age, height, weight, bmi, blood_sugar, cholesterol]
+      (user_id, check_date, date_of_birth, gender, age, height, weight, bmi, blood_sugar, cholesterol) 
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [user_id, check_date, date_of_birth, gender, age, height, weight, bmi, blood_sugar, cholesterol]
     );
     
     res.status(201).json({
@@ -27,12 +26,12 @@ exports.createDemographic = async (req, res) => {
   }
 };
 
-// Read All / Filter by Date or Date Range (menggunakan created_at)
+// Read All / Filter by Date or Date Range (menggunakan check_date)
 exports.getAllDemographics = async (req, res) => {
   try {
     const { date, start_date, end_date, user_id } = req.query;
 
-    // Menggunakan u.name sesuai dengan struktur tabel users Anda
+    // Menggunakan u.name sesuai dengan struktur tabel users
     let query = `
       SELECT d.*, u.name AS name 
       FROM demographic d
@@ -47,20 +46,21 @@ exports.getAllDemographics = async (req, res) => {
       params.push(user_id);
     }
 
-    // Penanganan filter tanggal menggunakan kolom DATE(created_at)
+    // Penanganan filter tanggal menggunakan kolom DATE(check_date)
     const singleDate = date || (!end_date ? start_date : null);
 
     if (singleDate && !end_date) {
       // Filter 1 tanggal spesifik (YYYY-MM-DD)
-      query += " AND DATE(d.created_at) = ?";
+      query += " AND DATE(d.check_date) = ?";
       params.push(singleDate);
     } else if (start_date && end_date) {
       // Filter Rentang Tanggal (YYYY-MM-DD)
-      query += " AND DATE(d.created_at) BETWEEN ? AND ?";
+      query += " AND DATE(d.check_date) BETWEEN ? AND ?";
       params.push(start_date, end_date);
     }
 
-    query += " ORDER BY d.created_at DESC";
+    // Urutkan berdasarkan check_date
+    query += " ORDER BY d.check_date DESC";
 
     const [rows] = await pool.query(query, params);
     res.status(200).json(rows);
@@ -91,16 +91,16 @@ exports.updateDemographic = async (req, res) => {
   try {
     const { id } = req.params;
     const { 
-        user_id, date_of_birth, gender, age, 
+        user_id, check_date, date_of_birth, gender, age, 
         height, weight, bmi, blood_sugar, cholesterol 
     } = req.body;
 
     const [result] = await pool.query(
       `UPDATE demographic SET 
-      user_id = ?, date_of_birth = ?, gender = ?, age = ?, 
+      user_id = ?, check_date = ?, date_of_birth = ?, gender = ?, age = ?, 
       height = ?, weight = ?, bmi = ?, blood_sugar = ?, cholesterol = ? 
       WHERE id = ?`,
-      [user_id, date_of_birth, gender, age, height, weight, bmi, blood_sugar, cholesterol, id]
+      [user_id, check_date, date_of_birth, gender, age, height, weight, bmi, blood_sugar, cholesterol, id]
     );
     
     if (result.affectedRows === 0)
