@@ -130,6 +130,35 @@ router.get("/", medicalRecordController.getAllMedicalRecords);
 
 /**
  * @swagger
+ * /api/medical-records/view:
+ *   get:
+ *     summary: Melihat file lampiran rekam medis (pdf, jpg, dll)
+ *     tags: [Medical Records]
+ *     parameters:
+ *       - in: query
+ *         name: path
+ *         schema:
+ *           type: string
+ *         required: true
+ *     responses:
+ *       200:
+ *         description: Berhasil memuat file
+ *         content:
+ *           application/octet-stream:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *       400:
+ *         description: Parameter path diperlukan
+ *       404:
+ *         description: File tidak ditemukan di server
+ *       500:
+ *         description: Gagal memuat file
+ */
+router.get("/view", medicalRecordController.viewFile);
+
+/**
+ * @swagger
  * /api/medical-records/{id}:
  *   get:
  *     summary: Mengambil data rekam medis berdasarkan ID
@@ -228,5 +257,6 @@ router.put("/:id", uploadFields, medicalRecordController.updateMedicalRecord);
  *         description: Terjadi kesalahan pada server
  */
 router.delete("/:id", medicalRecordController.deleteMedicalRecord);
+
 
 module.exports = router;

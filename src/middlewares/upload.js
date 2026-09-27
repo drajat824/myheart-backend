@@ -4,14 +4,9 @@ const fs = require('fs');
 
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
-        // Ambil user_id dari req.body. 
-        // Jika tidak ada (misal kelupaan), gunakan folder 'unknown' agar tidak error
         const userId = req.body.user_id || 'unknown'; 
-        
-        // Tentukan path folder: ../../file/[user_id]
         const uploadDir = path.join(__dirname, '../../file', String(userId));
 
-        // Buat folder secara dinamis jika belum ada
         if (!fs.existsSync(uploadDir)) {
             fs.mkdirSync(uploadDir, { recursive: true });
         }
@@ -19,12 +14,27 @@ const storage = multer.diskStorage({
         cb(null, uploadDir);
     },
     filename: function (req, file, cb) {
-        // Format penamaan file: fieldname-timestamp.ext
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+        
+        console.log("Data file yang diterima Multer:", file);
+
+        // Ekstensi dipaksa menjadi .pdf karena tipe lain sudah diblokir oleh fileFilter
+        cb(null, file.fieldname + '-' + uniqueSuffix + '.pdf');
     }
 });
 
-const upload = multer({ storage: storage });
+// Filter untuk memblokir selain PDF
+const fileFilter = (req, file, cb) => {
+    if (file.mimetype === 'application/pdf') {
+        cb(null, true);
+    } else {
+        cb(new Error('Hanya file dengan format PDF yang diperbolehkan, termasuk untuk medical image!'), false);
+    }
+};
+
+const upload = multer({ 
+    storage: storage,
+    fileFilter: fileFilter 
+});
 
 module.exports = upload;

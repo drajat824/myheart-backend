@@ -79,6 +79,7 @@ exports.getAllMedicalRecords = async (req, res) => {
 // Read One by ID
 exports.getMedicalRecordById = async (req, res) => {
   try {
+    console.log("tes")
     const { id } = req.params;
     const [rows] = await pool.query(`
       SELECT m.*, u.name AS name 
@@ -94,6 +95,39 @@ exports.getMedicalRecordById = async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Gagal mengambil data" });
+  }
+};
+
+// View File API
+exports.viewFile = (req, res) => {
+  try {
+    const filePathParam = req.query.path;
+
+    if (!filePathParam) {
+      return res.status(400).json({ error: "Parameter path file (path) diperlukan" });
+    }
+
+    const cleanedPath = filePathParam.replace('../', '');
+    const absolutePath = path.join(__dirname, '..', '..', cleanedPath);
+
+    console.log("Mencari file di lokasi fisik:", absolutePath);
+
+    if (!fs.existsSync(absolutePath)) {
+      return res.status(404).json({ error: "File tidak ditemukan di server" });
+    }
+
+    // Set Content-Type langsung ke PDF
+    res.setHeader('Content-Type', 'application/pdf');
+    const originalFileName = path.basename(absolutePath);
+    // attachment/inline
+    res.setHeader('Content-Disposition', `attachment; filename="${originalFileName}"`);
+    
+    const fileStream = fs.createReadStream(absolutePath);
+    fileStream.pipe(res);
+    
+  } catch (error) {
+    console.error("Gagal memuat file:", error);
+    res.status(500).json({ error: "Gagal memuat file" });
   }
 };
 
