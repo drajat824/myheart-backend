@@ -13,6 +13,7 @@ const medicationScheduleRoutes = require("./routes/medicationScheduleRoutes");
 const authRoutes = require("./routes/authRoutes"); // <-- 1. Import Auth Route
 const demographicRoutes = require("./routes/demographicRoutes");
 const medicalRecordRoutes = require('./routes/medicalRecordRoutes');
+const periodicCheckRoutes = require("./routes/periodicCheckRoutes");
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -51,6 +52,7 @@ app.use("/api/hr-aggregation", heartRateAggregationRoutes);
 app.use("/api/hr-issues", heartIssueRoutes);
 app.use("/api/medications", medicationRoutes);
 app.use("/api/medication-schedules", medicationScheduleRoutes);
+app.use("/api/periodic", periodicCheckRoutes);
 
 app.listen(port, () => {
   console.log(`Server running on http://localhost:${port}`);

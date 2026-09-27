@@ -141,7 +141,7 @@ exports.viewFile = (req, res) => {
     res.setHeader('Content-Type', 'application/pdf');
     const originalFileName = path.basename(absolutePath);
     // attachment/inline
-    res.setHeader('Content-Disposition', `attachment; filename="${originalFileName}"`);
+    res.setHeader('Content-Disposition', `inline; filename="${originalFileName}"`);
     
     const fileStream = fs.createReadStream(absolutePath);
     fileStream.pipe(res);
