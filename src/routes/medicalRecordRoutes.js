@@ -106,7 +106,7 @@ router.post("/", uploadFields, medicalRecordController.createMedicalRecord);
  * @swagger
  * /api/medical-records:
  *   get:
- *     summary: Mengambil daftar rekam medis (bisa difilter berdasarkan user_id)
+ *     summary: Mengambil daftar rekam medis (bisa difilter berdasarkan user_id, 1 tanggal, atau rentang tanggal)
  *     tags: [Medical Records]
  *     parameters:
  *       - in: query
@@ -114,6 +114,24 @@ router.post("/", uploadFields, medicalRecordController.createMedicalRecord);
  *         schema:
  *           type: integer
  *         description: Filter berdasarkan ID user
+ *       - in: query
+ *         name: date
+ *         schema:
+ *           type: string
+ *           example: "2026-09-27"
+ *         description: Filter untuk 1 tanggal spesifik (YYYY-MM-DD) berdasarkan check_date
+ *       - in: query
+ *         name: start_time
+ *         schema:
+ *           type: string
+ *           example: "2026-09-01"
+ *         description: Tanggal awal pencarian berdasarkan check_date
+ *       - in: query
+ *         name: end_time
+ *         schema:
+ *           type: string
+ *           example: "2026-09-30"
+ *         description: Tanggal akhir pencarian berdasarkan check_date
  *     responses:
  *       200:
  *         description: Berhasil mengambil daftar data

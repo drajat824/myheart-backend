@@ -49,9 +49,10 @@ exports.createMedicalRecord = async (req, res) => {
 };
 
 // Read All
+// Read All / Filter by Date or Date Range
 exports.getAllMedicalRecords = async (req, res) => {
   try {
-    const { user_id } = req.query;
+    const { user_id, date, start_time, end_time, timezone = "+07:00" } = req.query;
 
     let query = `
       SELECT m.*, u.name AS name 
@@ -64,6 +65,26 @@ exports.getAllMedicalRecords = async (req, res) => {
     if (user_id) {
       query += " AND m.user_id = ?";
       params.push(user_id);
+    }
+
+    // Penanganan filter tanggal menggunakan kolom check_date (bisa juga menggunakan created_at tergantung kebutuhan)
+    const singleDate = date || (!end_time ? start_time : null);
+
+    if (singleDate && !end_time) {
+      // Case 1: Filter 1 tanggal (kita asumsikan check_date adalah DATE atau DATETIME)
+      query += " AND DATE(m.check_date) = DATE(?)";
+      params.push(singleDate);
+    } else if (start_time && end_time) {
+      // Case 2: Filter Rentang Tanggal / Waktu
+      if (start_time.length === 10 && end_time.length === 10) {
+        // Rentang YYYY-MM-DD
+        query += " AND DATE(m.check_date) BETWEEN ? AND ?";
+        params.push(start_time, end_time);
+      } else {
+        // Rentang timestamp ISO / Date Time
+        query += " AND m.check_date >= ? AND m.check_date <= ?";
+        params.push(start_time, end_time);
+      }
     }
 
     query += " ORDER BY m.created_at DESC";
