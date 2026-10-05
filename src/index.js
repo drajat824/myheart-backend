@@ -32,7 +32,7 @@ const swaggerOptions = {
     },
     servers: [
       {
-        url: `http://localhost:${port}`,
+        url: `http://${process.env.IP_VPS || 'localhost'}:${port}`,
         description: "Development Server",
       },
     ],
